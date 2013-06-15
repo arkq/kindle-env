@@ -10,92 +10,43 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-#include <jansson.h>
+#include <json/json.h>
 
 #include "keyboard.h"
-#include "ktterm.h"
+#include "ktutils.h"
 
 
-#define embedded_kb_is_key_match(_key, _x, _y) \
-	(_x >= _key.x && _x <= _key.x + _key.width && _y >= _key.y && _y <= _key.y + _key.height)
+/* Load keyboard configuration (keys and corresponding modes) from the JSON
+ * configuration file. Upon success this function returns TRUE, otherwise
+ * FALSE is returned. */
+static gboolean kb_load_keys(ktkb_keyboard *kb, const char *fname) {
 
-ktkb_keyboard_t *embedded_kb_new(GtkWidget *kb_box, VteTerminal *terminal, const char *image_fname, const char *keys_fname) {
-
-	GtkWidget *kb_image;
-	ktkb_keyboard_t *kb;
-
-	kb = (ktkb_keyboard_t *)malloc(sizeof(ktkb_keyboard_t));
-	memset(kb, 0, sizeof(ktkb_keyboard_t));
-
-	kb->terminal = terminal;
-	embedded_kb_load_keys(kb, keys_fname);
-
-	kb_image = gtk_image_new_from_file(image_fname);
-	gtk_container_add((GtkContainer *)(kb_box), kb_image);
-	g_signal_connect(kb_box, "button-press-event", G_CALLBACK(embedded_kb_events), kb);
-
-	return kb;
-}
-
-void embedded_kb_free(ktkb_keyboard_t *kb) {
-
-	int i, ii;
-
-	for (i = 0; i < kb->keys_size; i++) {
-		for (ii = 0; ii < kb->keys[i].length; ii++)
-			free(kb->keys[i].modes[ii].sequence);
-		free(kb->keys[i].modes);
-	}
-
-	free(kb->keys);
-	free(kb->flags);
-	free(kb);
-}
-
-gboolean embedded_kb_load_keys(ktkb_keyboard_t *kb, const char *fname) {
-
-	json_t *json, *json_flags, *json_keys;
-	json_t *json_flag, *json_key, *json_key_mode;
+	json_object *configuration;
+	json_object *array, *tmp1, *tmp2;
 	const char *sequence;
 	int i, ii;
 
-	if ((json = json_load_file(fname, 0, NULL)) == NULL)
+	if ((configuration = json_object_from_file(fname)) == NULL)
 		return FALSE;
 
-	if (json_is_object(json)) {
-
-		json_flags = json_object_get(json, "flags");
-		kb->flags_size = json_array_size(json_flags);
-		kb->flags = (ktkb_flag_t *)malloc(kb->flags_size * sizeof(ktkb_flag_t));
-		for (i = 0; i < kb->flags_size; i++) {
-			json_flag = json_array_get(json_flags, i);
-
-			kb->flags[i].x = (int)json_integer_value(json_array_get(json_flag, 0));
-			kb->flags[i].y = (int)json_integer_value(json_array_get(json_flag, 1));
-			kb->flags[i].width = (int)json_integer_value(json_array_get(json_flag, 2));
-			kb->flags[i].height = (int)json_integer_value(json_array_get(json_flag, 3));
-			kb->flags[i].value = (char)json_integer_value(json_array_get(json_flag, 4));
-		}
-
-		json_keys = json_object_get(json, "keys");
-		kb->keys_size = json_array_size(json_keys);
-		kb->keys = (ktkb_key_t *)malloc(kb->keys_size * sizeof(ktkb_key_t));
+	if (json_object_object_get_ex(configuration, "keys", &array)) {
+		kb->keys_size = json_object_array_length(array);
+		kb->keys = (ktkb_key *)malloc(kb->keys_size * sizeof(ktkb_key));
 		for (i = 0; i < kb->keys_size; i++) {
-			json_key = json_array_get(json_keys, i);
+			tmp1 = json_object_array_get_idx(array, i);
 
-			kb->keys[i].x = (int)json_integer_value(json_array_get(json_key, 0));
-			kb->keys[i].y = (int)json_integer_value(json_array_get(json_key, 1));
-			kb->keys[i].width = (int)json_integer_value(json_array_get(json_key, 2));
-			kb->keys[i].height = (int)json_integer_value(json_array_get(json_key, 3));
+			kb->keys[i].x = json_object_get_int(json_object_array_get_idx(tmp1, 0));
+			kb->keys[i].y = json_object_get_int(json_object_array_get_idx(tmp1, 1));
+			kb->keys[i].width = json_object_get_int(json_object_array_get_idx(tmp1, 2));
+			kb->keys[i].height = json_object_get_int(json_object_array_get_idx(tmp1, 3));
 
-			kb->keys[i].length = json_array_size(json_key) - 4;
-			kb->keys[i].modes = (ktkb_key_mode_t *)malloc(kb->keys[i].length * sizeof(ktkb_key_mode_t));
+			kb->keys[i].length = json_object_array_length(tmp1) - 4;
+			kb->keys[i].modes = (ktkb_key_mode *)malloc(kb->keys[i].length * sizeof(ktkb_key_mode));
 			for (ii = 0; ii < kb->keys[i].length; ii++) {
-				json_key_mode = json_array_get(json_key, ii + 4);
+				tmp2 = json_object_array_get_idx(tmp1, ii + 4);
 
-				kb->keys[i].modes[ii].flag = (char)json_integer_value(json_array_get(json_key_mode, 0));
-				sequence = json_string_value(json_array_get(json_key_mode, 1));
+				kb->keys[i].modes[ii].flag = json_object_get_int(json_object_array_get_idx(tmp2, 0));
+				sequence = json_object_get_string(json_object_array_get_idx(tmp2, 1));
 
 				kb->keys[i].modes[ii].length = strlen(sequence);
 				kb->keys[i].modes[ii].sequence = (char *)malloc(kb->keys[i].modes[ii].length);
@@ -104,51 +55,28 @@ gboolean embedded_kb_load_keys(ktkb_keyboard_t *kb, const char *fname) {
 		}
 	}
 
-	json_decref(json);
+	if (json_object_object_get_ex(configuration, "flags", &array)) {
+		kb->flags_size = json_object_array_length(array);
+		kb->flags = (ktkb_flag *)malloc(kb->flags_size * sizeof(ktkb_flag));
+		for (i = 0; i < kb->flags_size; i++) {
+			tmp1 = json_object_array_get_idx(array, i);
+
+			kb->flags[i].x = json_object_get_int(json_object_array_get_idx(tmp1, 0));
+			kb->flags[i].y = json_object_get_int(json_object_array_get_idx(tmp1, 1));
+			kb->flags[i].width = json_object_get_int(json_object_array_get_idx(tmp1, 2));
+			kb->flags[i].height = json_object_get_int(json_object_array_get_idx(tmp1, 3));
+			kb->flags[i].value = json_object_get_int(json_object_array_get_idx(tmp1, 4));
+		}
+	}
+
+	json_object_put(configuration);
 	return TRUE;
 }
 
-gboolean embedded_kb_events(GtkWidget *widget, GdkEventButton *event, gpointer data) {
+/* Process action for given key. */
+static void kb_process_key(ktkb_keyboard *kb, ktkb_key *key) {
 
-	ktkb_keyboard_t *kb = (ktkb_keyboard_t *)data;
-	gint i;
-
-	if (event->type == GDK_BUTTON_PRESS && event->button == KT_TOUCH_TAP)
-		for (i = 0; i < kb->flags_size; i++)
-			if (embedded_kb_is_key_match(kb->flags[i], event->x, event->y)) {
-				embedded_kb_action_flag(kb, &kb->flags[i], FALSE);
-				return FALSE;
-			}
-	if (event->type == GDK_BUTTON_PRESS && event->button == KT_TOUCH_HOLD)
-		for (i = 0; i < kb->flags_size; i++)
-			if (embedded_kb_is_key_match(kb->flags[i], event->x, event->y)) {
-				embedded_kb_action_flag(kb, &kb->flags[i], TRUE);
-				return FALSE;
-			}
-
-	if (event->type == GDK_BUTTON_PRESS && event->button == KT_TOUCH_TAP)
-		for (i = 0; i < kb->keys_size; i++)
-			if (embedded_kb_is_key_match(kb->keys[i], event->x, event->y)) {
-				embedded_kb_action_key(kb, &kb->keys[i]);
-				return FALSE;
-			}
-
-  return FALSE;
-}
-
-void embedded_kb_action_flag(ktkb_keyboard_t *kb, ktkb_flag_t *flag, gboolean lock) {
-	if (lock) {
-		kb->static_flags |= flag->value;
-	}
-	else {
-		kb->static_flags &= !flag->value;
-		kb->dynamic_flags ^= flag->value;
-	}
-}
-
-void embedded_kb_action_key(ktkb_keyboard_t *kb, ktkb_key_t *key) {
-
-	ktkb_key_mode_t *key_mode;
+	ktkb_key_mode *key_mode;
 	int i, flags;
 
 	flags = kb->static_flags | kb->dynamic_flags;
@@ -161,7 +89,7 @@ void embedded_kb_action_key(ktkb_keyboard_t *kb, ktkb_key_t *key) {
 			break;
 		}
 
-	/* run user's key event callback */
+	/* run user-defined key event callback */
 	if (kb->callback != NULL)
 		if (kb->callback(key_mode, kb->callback_data) == TRUE)
 			return;
@@ -169,7 +97,97 @@ void embedded_kb_action_key(ktkb_keyboard_t *kb, ktkb_key_t *key) {
 	vte_terminal_feed_child_binary(kb->terminal, key_mode->sequence, key_mode->length);
 }
 
-void embedded_kb_set_key_callback(ktkb_keyboard_t *kb, ktkb_key_event_t callback, void *data) {
+/* Process action for given flag. If the lock parameter is TRUE, then the new
+ * state of the flag is saved - persistent state. */
+static void kb_process_flag(ktkb_keyboard *kb, ktkb_flag *flag, gboolean lock) {
+	if (lock)
+		kb->static_flags |= flag->value;
+	else {
+		kb->static_flags &= !flag->value;
+		kb->dynamic_flags ^= flag->value;
+	}
+}
+
+#define kb_is_key_match(_key, _x, _y) \
+	(_x >= _key.x && _x <= _key.x + _key.width && _y >= _key.y && _y <= _key.y + _key.height)
+
+static gboolean kb_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data) {
+	(void)widget;
+
+	ktkb_keyboard *kb = (ktkb_keyboard *)data;
+	gint i;
+
+	if (event->type == GDK_BUTTON_PRESS && event->button == KT_TOUCH_TAP)
+		for (i = 0; i < kb->flags_size; i++)
+			if (kb_is_key_match(kb->flags[i], event->x, event->y)) {
+				kb_process_flag(kb, &kb->flags[i], FALSE);
+				return FALSE;
+			}
+
+	if (event->type == GDK_BUTTON_PRESS && event->button == KT_TOUCH_HOLD)
+		for (i = 0; i < kb->flags_size; i++)
+			if (kb_is_key_match(kb->flags[i], event->x, event->y)) {
+				kb_process_flag(kb, &kb->flags[i], TRUE);
+				return FALSE;
+			}
+
+	if (event->type == GDK_BUTTON_PRESS && event->button == KT_TOUCH_TAP)
+		for (i = 0; i < kb->keys_size; i++)
+			if (kb_is_key_match(kb->keys[i], event->x, event->y)) {
+				kb_process_key(kb, &kb->keys[i]);
+				return FALSE;
+			}
+
+  return FALSE;
+}
+
+/* Initialize embedded keyboard widget using given image and configuration.
+ * When keyboard is no longer required, the resources used by this widget
+ * should be released by the call to the embedded_kb_free() function. */
+ktkb_keyboard *embedded_kb_new(GtkWidget *kb_box, VteTerminal *terminal,
+		const char *image, const char *configuration) {
+
+	GtkWidget *kb_image;
+	ktkb_keyboard *kb;
+
+	if ((kb = (ktkb_keyboard *)calloc(1, sizeof(*kb))) == NULL)
+		return NULL;
+
+	kb->terminal = terminal;
+	if (!kb_load_keys(kb, configuration)) {
+		free(kb);
+		return NULL;
+	}
+
+	kb_image = gtk_image_new_from_file(image);
+	gtk_container_add((GtkContainer *)(kb_box), kb_image);
+	g_signal_connect(kb_box, "button-press-event", G_CALLBACK(kb_press_event), kb);
+
+	return kb;
+}
+
+void embedded_kb_free(ktkb_keyboard *kb) {
+
+	int i, ii;
+
+	if (kb == NULL)
+		return;
+
+	for (i = 0; i < kb->keys_size; i++) {
+		for (ii = 0; ii < kb->keys[i].length; ii++)
+			free(kb->keys[i].modes[ii].sequence);
+		free(kb->keys[i].modes);
+	}
+
+	free(kb->keys);
+	free(kb->flags);
+	free(kb);
+}
+
+/* Set user-defined callback function. This function will be called for every
+ * key-press action except flag keys. If the callback function returns TRUE,
+ * the standard key press is not forwarded to the terminal. */
+void embedded_kb_set_key_callback(ktkb_keyboard *kb, ktkb_key_event callback, void *data) {
 	kb->callback = callback;
 	kb->callback_data = data;
 }

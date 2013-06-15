@@ -11,21 +11,34 @@
 #include "ktutils.h"
 
 
-void ktterm_window_set_placement(GtkWindow *window, KTWindowPlacement placement) {
+/* Set window placement withing the Kindle Touch application framework. The
+ * window parameter should be a top-level one. */
+void kt_window_set_placement(GtkWindow *window, KTWindowPlacement placement, const char *app) {
+
+	gchar *tmp;
+
 	switch (placement) {
+	default:
 	case KT_WINDOW_PLACEMENT_APPLICATION:
-		gtk_window_set_title(window, "L:A_N:application_PC:TS_ID:" APP_NAME);
+		tmp = g_strdup_printf("L:A_N:application_PC:TS_ID:%s", app);
 		break;
 	case KT_WINDOW_PLACEMENT_MAXIMIZED:
-		gtk_window_set_title(window, "L:A_N:application_ID:" APP_NAME);
+		tmp = g_strdup_printf("L:A_N:application_ID:%s", app);
 		break;
 	case KT_WINDOW_PLACEMENT_FULLSCREEN:
-		gtk_window_set_title(window, "L:A_N:application_PC:N_ID:" APP_NAME);
+		tmp = g_strdup_printf("L:A_N:application_PC:N_ID:%s", app);
 		break;
 	}
+
+	gtk_window_set_title(window, tmp);
+	g_free(tmp);
 }
 
-void ktterm_terminal_set_colors(VteTerminal *terminal, gboolean reversed) {
+/* Set terminal color in the standard fashion (black font on white background)
+ * or reversed one. Other color combinations are not required, because Kindle
+ * Touch has an E-Ink display which supports gray scale only. */
+void kt_terminal_set_colors(VteTerminal *terminal, gboolean reversed) {
+
 	GdkColor color_white = { 0, 0xffff, 0xffff, 0xffff };
 	GdkColor color_black = { 0, 0x0000, 0x0000, 0x0000 };
 
@@ -35,7 +48,9 @@ void ktterm_terminal_set_colors(VteTerminal *terminal, gboolean reversed) {
 		vte_terminal_set_colors(terminal, &color_white, &color_black, NULL, 0);
 }
 
-gint ktterm_terminal_get_font_size(VteTerminal *terminal) {
+/* Get current font size. */
+gint kt_terminal_get_font_size(VteTerminal *terminal) {
+
 	PangoFontDescription *font;
 	gint size;
 
@@ -48,7 +63,9 @@ gint ktterm_terminal_get_font_size(VteTerminal *terminal) {
 	return size;
 }
 
-void ktterm_terminal_set_font_size(VteTerminal *terminal, gint size) {
+/* Set terminal fort size. */
+void kt_terminal_set_font_size(VteTerminal *terminal, gint size) {
+
 	PangoFontDescription *font;
 
 	font = (PangoFontDescription *)vte_terminal_get_font(terminal);

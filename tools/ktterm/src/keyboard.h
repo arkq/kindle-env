@@ -8,45 +8,60 @@
  *
  */
 
+#ifndef KTTERM_KEYBOARD_
+#define KTTERM_KEYBOARD_
+
+#include <gtk/gtk.h>
 #include <vte/vte.h>
 
 
-typedef struct embedded_kb_key_mode_tag {
+/* Structure which holds a key sequence. For standard characters the sequence
+ * is a simple ASCII code - one byte. */
+typedef struct embedded_kb_key_mode {
 	char *sequence;
 	char flag, length;
-} ktkb_key_mode_t;
+} ktkb_key_mode;
 
-typedef struct embedded_kb_key_tag {
+/* Physical key representation on the keyboard. Every key within a keyboard
+ * is placed at the specified (X, Y) coordinates with the given width and
+ * height. Also, every key can hold multiple number of modes - keyboard flag
+ * (modifier) can alternate key sequence. */
+typedef struct embedded_kb_key {
 	int x, y, width, height;
-	ktkb_key_mode_t *modes;
+	ktkb_key_mode *modes;
 	char length;
-} ktkb_key_t;
+} ktkb_key;
 
-typedef struct embedded_kb_flag_tag {
+/* Special key, which acts as a keyboard flag (aka modifier). */
+typedef struct embedded_kb_flag {
 	int x, y, width, height;
 	char value;
-} ktkb_flag_t;
+} ktkb_flag;
 
-typedef gboolean (*ktkb_key_event_t)(ktkb_key_mode_t *key, void *data);
+/* User-defined callback function for key processing. */
+typedef gboolean (*ktkb_key_event)(ktkb_key_mode *key, void *data);
 
-typedef struct embedded_kb_tag {
-	ktkb_key_t *keys;
-	ktkb_flag_t *flags;
-	int keys_size, flags_size;
+typedef struct embedded_kb {
+
+	ktkb_key *keys;
+	ktkb_flag *flags;
+	int keys_size;
+	int flags_size;
 
 	char static_flags;
 	char dynamic_flags;
 	VteTerminal *terminal;
 
-	ktkb_key_event_t callback;
+	ktkb_key_event callback;
 	void *callback_data;
-} ktkb_keyboard_t;
+
+} ktkb_keyboard;
 
 
-ktkb_keyboard_t *embedded_kb_new(GtkWidget *kb_box, VteTerminal *terminal, const char *image_fname, const char *keys_fname);
-void embedded_kb_free(ktkb_keyboard_t *kb);
-gboolean embedded_kb_load_keys(ktkb_keyboard_t *kb, const char *fname);
-gboolean embedded_kb_events(GtkWidget *widget, GdkEventButton *event, gpointer data);
-void embedded_kb_action_flag(ktkb_keyboard_t *kb, ktkb_flag_t *flag, gboolean lock);
-void embedded_kb_action_key(ktkb_keyboard_t *kb, ktkb_key_t *key);
-void embedded_kb_set_key_callback(ktkb_keyboard_t *kb, ktkb_key_event_t callback, void *data);
+ktkb_keyboard *embedded_kb_new(GtkWidget *kb_box, VteTerminal *terminal,
+		const char *image, const char *configuration);
+void embedded_kb_free(ktkb_keyboard *kb);
+
+void embedded_kb_set_key_callback(ktkb_keyboard *kb, ktkb_key_event callback, void *data);
+
+#endif  /* KTTERM_KEYBOARD_ */
