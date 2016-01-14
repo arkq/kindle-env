@@ -1,0 +1,4 @@
+[submodule "tools/kindletool"]
+	path = tools/kindletool
+	url = https://github.com/NiLuJe/KindleTool.git
+	ignore = all
