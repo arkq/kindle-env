@@ -4,6 +4,7 @@
 AC_INIT([collector], [0.1.0], [arkadiusz.bokowy@gmail.com])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
+AM_EXTRA_RECURSIVE_TARGETS([kindle-relink])
 
 AC_PROG_CC
 AM_PROG_CC_C_O
@@ -25,7 +26,6 @@ PKG_CHECK_MODULES(
 	[UUID], [uuid],
 	[], [AC_MSG_ERROR([module uuid not found])],
 )
-
 
 AC_CONFIG_FILES([Makefile src/Makefile])
 AC_OUTPUT
