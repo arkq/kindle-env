@@ -35,3 +35,6 @@
 Makefile.in
 config.h.in
 *~
+
+# Kindle root image
+/kindle/*

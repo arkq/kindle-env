@@ -1,0 +1,48 @@
+#!/bin/bash
+# Mount wrapper for Kindle partition images.
+
+# the root directory of the Development Environment
+DEVDIR="$(dirname "$0")/.."
+
+# default mount options
+MOUNTDIR="$DEVDIR/kindle"
+MOUNTOPT="ro"
+
+function usage {
+	cat << EOF
+usage: $0 [options] <image>
+options:
+  -h  display this help text and exit
+  -r  mount root partition (default option)
+  -u  mount user data partition
+  -w  mount the filesystem read/write
+EOF
+}
+
+while getopts "hruw" opt; do
+	case "$opt" in
+	h)
+		usage
+		exit 1
+		;;
+	r)
+		MOUNTDIR="$DEVDIR/kindle"
+		;;
+	u)
+		MOUNTDIR="$DEVDIR/kindle/var/local"
+		;;
+	w)
+		MOUNTOPT="rw"
+		;;
+	*)
+		exit 1
+		;;
+	esac
+done
+
+shift $((OPTIND - 1))
+[ "$1" = "--" ] && shift
+
+[ -z "$1" ] && { usage; exit 1; }
+
+exec mount -o loop -o "$MOUNTOPT" "$1" "$MOUNTDIR"
