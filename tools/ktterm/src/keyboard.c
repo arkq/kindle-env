@@ -1,6 +1,6 @@
 /*
  * ktterm - keyboard.c
- * Copyright (c) 2013 Arkadiusz Bokowy
+ * Copyright (c) 2013-2016 Arkadiusz Bokowy
  *
  * This file is a part of a ktterm.
  *
@@ -26,7 +26,7 @@ static gboolean kb_load_keys(ktkb_keyboard *kb, const char *fname) {
 	const char *sequence;
 	int i, ii;
 
-	if ((configuration = json_object_from_file(fname)) == NULL)
+	if G_UNLIKELY ((configuration = json_object_from_file(fname)) == NULL)
 		return FALSE;
 
 	if (json_object_object_get_ex(configuration, "keys", &array)) {
@@ -150,11 +150,11 @@ ktkb_keyboard *embedded_kb_new(GtkWidget *kb_box, VteTerminal *terminal,
 	GtkWidget *kb_image;
 	ktkb_keyboard *kb;
 
-	if ((kb = (ktkb_keyboard *)calloc(1, sizeof(*kb))) == NULL)
+	if G_UNLIKELY ((kb = (ktkb_keyboard *)calloc(1, sizeof(*kb))) == NULL)
 		return NULL;
 
 	kb->terminal = terminal;
-	if (!kb_load_keys(kb, configuration)) {
+	if G_UNLIKELY (!kb_load_keys(kb, configuration)) {
 		free(kb);
 		return NULL;
 	}
@@ -170,7 +170,7 @@ void embedded_kb_free(ktkb_keyboard *kb) {
 
 	int i, ii;
 
-	if (kb == NULL)
+	if G_UNLIKELY (kb == NULL)
 		return;
 
 	for (i = 0; i < kb->keys_size; i++) {

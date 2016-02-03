@@ -27,5 +27,6 @@ PKG_CHECK_MODULES(
 	[], [AC_MSG_ERROR([module uuid not found])],
 )
 
+
 AC_CONFIG_FILES([Makefile src/Makefile])
 AC_OUTPUT

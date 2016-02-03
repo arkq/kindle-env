@@ -1,5 +1,5 @@
 # ktterm - Makefile.am
-# Copyright (c) 2013 Arkadiusz Bokowy
+# Copyright (c) 2013-2016 Arkadiusz Bokowy
 
 bin_PROGRAMS = ktterm
 
@@ -19,5 +19,22 @@ ktterm_LDADD = \
 	@GTK_LIBS@ \
 	@VTE_LIBS@
 
-static-relink: $(ktterm_OBJECTS)
-	$(CCLD) $(CFLAGS) -o ktterm $(ktterm_OBJECTS) @GTK_LIBS@ -lX11 -lm -lncurses -Wl,-Bstatic -ljson-c -lvte -Wl,-Bdynamic
+ktpatch.o: ktpatch.c
+	$(CC) $(CFLAGS) $(ktterm_CFLAGS) -c -o ktpatch.o "$(srcdir)/ktpatch.c"
+
+kindle-relink-local: $(ktterm_OBJECTS) ktpatch.o
+	$(CCLD) $(CFLAGS) -o ktterm $(ktterm_OBJECTS) ktpatch.o \
+		-Wl,-rpath-link=$(top_srcdir)/../../kindle/usr/lib \
+		$(top_srcdir)/../../kindle/usr/lib/libglib-2.0.so \
+		$(top_srcdir)/../../kindle/usr/lib/libgobject-2.0.so \
+		$(top_srcdir)/../../kindle/usr/lib/libgtk-x11-2.0.so \
+		$(top_srcdir)/../../kindle/usr/lib/libgdk-x11-2.0.so \
+		$(top_srcdir)/../../kindle/usr/lib/libgdk_pixbuf-2.0.so \
+		$(top_srcdir)/../../kindle/usr/lib/libatk-1.0.so \
+		$(top_srcdir)/../../kindle/usr/lib/libcairo.so \
+		$(top_srcdir)/../../kindle/usr/lib/libgio-2.0.so \
+		$(top_srcdir)/../../kindle/usr/lib/libpango-1.0.so \
+		$(top_srcdir)/../../kindle/usr/lib/libpangocairo-1.0.so.0 \
+		$(top_srcdir)/../../kindle/usr/lib/libXinerama.so \
+		-lX11 -lm -lncurses \
+		-Wl,-Bstatic -ljson-c -lvte -Wl,-Bdynamic
