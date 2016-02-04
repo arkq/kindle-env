@@ -4,8 +4,9 @@
 bin_PROGRAMS = collector
 
 collector_SOURCES = \
-	main.c \
-	find.c
+	find.c \
+	strrcmp.c \
+	main.c
 
 collector_CFLAGS = \
 	@GLIB20_CFLAGS@ \
