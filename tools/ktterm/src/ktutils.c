@@ -43,9 +43,9 @@ void kt_terminal_set_colors(VteTerminal *terminal, gboolean reversed) {
 	GdkColor color_black = { 0, 0x0000, 0x0000, 0x0000 };
 
 	if (reversed)
-		vte_terminal_set_colors(terminal, &color_black, &color_white, NULL, 0);
-	else
 		vte_terminal_set_colors(terminal, &color_white, &color_black, NULL, 0);
+	else
+		vte_terminal_set_colors(terminal, &color_black, &color_white, NULL, 0);
 }
 
 /* Get current font size. */

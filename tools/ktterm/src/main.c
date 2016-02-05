@@ -1,6 +1,6 @@
 /*
  * ktterm - main.c
- * Copyright (c) 2013 Arkadiusz Bokowy
+ * Copyright (c) 2013-2016 Arkadiusz Bokowy
  *
  * This file is a part of a ktterm.
  *
@@ -183,21 +183,24 @@ static gboolean keyboard_key_callback(ktkb_key_mode *key, void *data) {
 
 int main(int argc, char *argv[]) {
 
+	/* initialize GTK and process standard arguments */
+	gtk_init(&argc, &argv);
+
 	int opt;
 
 	int font_size = KT_VTE_FONT_SIZE;
-	char resources_dir[128] = DATADIR;
-	char *vte_argv[16] = { "/bin/sh", NULL };
+	const char *resources_dir = DATADIR;
 
-	while ((opt = getopt(argc, argv, "hdT:Kf:vR:r")) != -1)
+	while ((opt = getopt(argc, argv, "hKR:e:f:rv")) != -1)
 		switch (opt) {
 		case 'h':
-			printf("usage: %s [options]\n"
-					"  -K\tuse the Kindle keyboard\n"
-					"  -R\tresources directory\n"
-					"  -f\tset terminal font size\n"
-					"  -r\tuse reversed color palette\n"
-					"  -v\trun in the full-screen mode\n",
+			printf("usage: %s [options] [-e CMD [ args ]]\n"
+					"  -K\t\tuse build-in Kindle keyboard\n"
+					"  -R DIR\tuse DIR as a resources directory\n"
+					"  -e CMD\trun command with its arguments\n"
+					"  -f NB\t\tset terminal font size to NB\n"
+					"  -r\t\tuse reversed color palette\n"
+					"  -v\t\trun in the full-screen mode\n",
 					argv[0]);
 			return EXIT_SUCCESS;
 
@@ -205,8 +208,11 @@ int main(int argc, char *argv[]) {
 			ktterm_use_kindle_keyboard = TRUE;
 			break;
 		case 'R':
-			strncpy(resources_dir, optarg, sizeof(resources_dir) - 1);
+			resources_dir = optarg;
 			break;
+		case 'e':
+			argv = &argv[optind - 1];
+			goto main;
 		case 'f':
 			font_size = atoi(optarg);
 			break;
@@ -222,8 +228,11 @@ int main(int argc, char *argv[]) {
 			return EXIT_FAILURE;
 		}
 
-	gtk_init(&argc, &argv);
+	/* use default Unix shell as a main command */
+	const char *shell[] = { "/bin/sh", NULL };
+	argv = (char **)&shell;
 
+main:
 	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
 	kt_window_set_placement((GtkWindow *)window, KT_WINDOW_PLACEMENT_MAXIMIZED, PACKAGE);
@@ -242,7 +251,7 @@ int main(int argc, char *argv[]) {
 	kt_terminal_set_colors((VteTerminal *)terminal, ktterm_reverse_video);
 	kt_terminal_set_font_size((VteTerminal *)terminal, font_size);
 	vte_terminal_fork_command_full((VteTerminal *)terminal, VTE_PTY_DEFAULT,
-			NULL, vte_argv, NULL, G_SPAWN_LEAVE_DESCRIPTORS_OPEN, NULL, NULL, NULL, NULL);
+			NULL, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL);
 
 	/* load resources for the embedded keyboard */
 	if (!ktterm_use_kindle_keyboard) {
