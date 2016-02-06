@@ -46,7 +46,8 @@ Mounting root image
 
 Download an appropriate firmware from the Amazon Kindle Software Updates
 [page](http://www.amazon.com/help/kindlesoftwareupdates) and unpack it using the
-[kindletool](/tools/kindletool/) extraction tool, as follows:
+[kindletool](https://github.com/NiLuJe/KindleTool) extraction tool (which source is linked in the
+[tools](/tools) directory), as follows:
 
 	$ kindletool extract update_kindle_x.x.x.bin /tmp
 	$ gunzip /tmp/rootfs.img.gz
