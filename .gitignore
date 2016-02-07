@@ -38,3 +38,5 @@ config.h.in
 
 # Kindle root image
 /kindle/*
+/kindle-rootfs.img
+/kindle-userfs.img
