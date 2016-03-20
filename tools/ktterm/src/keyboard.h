@@ -1,6 +1,6 @@
 /*
  * ktterm - keyboard.h
- * Copyright (c) 2013 Arkadiusz Bokowy
+ * Copyright (c) 2013-2016 Arkadiusz Bokowy
  *
  * This file is a part of a ktterm.
  *
@@ -11,6 +11,7 @@
 #ifndef KTTERM_KEYBOARD_
 #define KTTERM_KEYBOARD_
 
+#include <gdk-pixbuf/gdk-pixbuf.h>
 #include <gtk/gtk.h>
 #include <vte/vte.h>
 
@@ -52,6 +53,10 @@ typedef struct embedded_kb {
 	char dynamic_flags;
 	VteTerminal *terminal;
 
+	GdkPixbuf *kb_pixbuf;
+	GtkWidget *kb_image;
+	int width, height;
+
 	ktkb_key_event callback;
 	void *callback_data;
 
@@ -62,6 +67,7 @@ ktkb_keyboard *embedded_kb_new(GtkWidget *kb_box, VteTerminal *terminal,
 		const char *image, const char *configuration);
 void embedded_kb_free(ktkb_keyboard *kb);
 
+void embedded_kb_scale(ktkb_keyboard *kb, int width, int height);
 void embedded_kb_set_key_callback(ktkb_keyboard *kb, ktkb_key_event callback, void *data);
 
 #endif  /* KTTERM_KEYBOARD_ */

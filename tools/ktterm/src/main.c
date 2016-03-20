@@ -31,6 +31,9 @@ gboolean ktterm_reverse_video = FALSE;
 gboolean ktterm_show_keyboard = TRUE;
 gboolean ktterm_use_kindle_keyboard = FALSE;
 
+/* Embedded keyboard handler - might be NULL! */
+static ktkb_keyboard *embedded_kb = NULL;
+
 /* Global window (widget) handlers. */
 static GtkWidget *window = NULL;
 static GtkWidget *terminal = NULL;
@@ -134,6 +137,14 @@ static gboolean terminal_event_callback(GtkWidget *widget, GdkEventButton *event
 	}
 
 	return FALSE;
+}
+
+/* This callback function handles main window resize events. */
+static void resize_event_callback(GtkWidget *widget, GtkAllocation *allocation, void *data) {
+	(void)widget;
+	(void)data;
+	if (!ktterm_use_kindle_keyboard)
+		embedded_kb_scale(embedded_kb, allocation->width, -1);
 }
 
 /* This callback function handles special sequences (prefixed with the "\uf1f1")
@@ -258,14 +269,14 @@ main:
 
 		gchar *tmp1 = g_strdup_printf("%s/keyboard.png", resources_dir);
 		gchar *tmp2 = g_strdup_printf("%s/keyboard.cfg", resources_dir);
-		ktkb_keyboard *kb;
 
-		if ((kb = embedded_kb_new(keyboard, (VteTerminal *)terminal, tmp1, tmp2)) == NULL) {
+		embedded_kb = embedded_kb_new(keyboard, (VteTerminal *)terminal, tmp1, tmp2);
+		if G_UNLIKELY (embedded_kb == NULL) {
 			fprintf(stderr, "error: unable to load embedded keyboard\n");
 			return EXIT_FAILURE;
 		}
 
-		embedded_kb_set_key_callback(kb, keyboard_key_callback, NULL);
+		embedded_kb_set_key_callback(embedded_kb, keyboard_key_callback, NULL);
 
 		g_free(tmp1);
 		g_free(tmp2);
@@ -285,14 +296,16 @@ main:
 	gtk_widget_add_events(terminal, GDK_BUTTON_PRESS_MASK);
 	g_signal_connect(terminal, "motion-notify-event", G_CALLBACK(gtk_true), NULL);
 	g_signal_connect(terminal, "button-press-event", G_CALLBACK(terminal_event_callback), NULL);
+	g_signal_connect(window, "size-allocate", G_CALLBACK(resize_event_callback), NULL);
 
-	g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 	g_signal_connect(terminal, "child-exited", G_CALLBACK(gtk_main_quit), NULL);
+	g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 
 	gtk_main();
 
 	/* proper shut down of the external keyboard is required */
-	show_keyboard(FALSE);
+	if (ktterm_use_kindle_keyboard)
+		show_keyboard(FALSE);
 
 	/* Skip explicit memory free action, since it will be freed
 	 * by the OS anyway - save precious bytes. */

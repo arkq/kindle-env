@@ -8,11 +8,12 @@
  *
  */
 
+#include "keyboard.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <json/json.h>
 
-#include "keyboard.h"
 #include "ktutils.h"
 
 
@@ -83,7 +84,7 @@ static void kb_process_key(ktkb_keyboard *kb, ktkb_key *key) {
 	key_mode = &key->modes[0];
 	kb->dynamic_flags = 0;
 
-	for (i = 0; i < key->length; i++)
+	for (i = key->length - 1; i >= 0; i--)
 		if (key->modes[i].flag == flags) {
 			key_mode = &key->modes[i];
 			break;
@@ -115,27 +116,31 @@ static gboolean kb_press_event(GtkWidget *widget, GdkEventButton *event, gpointe
 	(void)widget;
 
 	ktkb_keyboard *kb = (ktkb_keyboard *)data;
+	gint x = event->x, y = event->y;
+	gint src_w, src_h;
 	gint i;
 
-	if (event->type == GDK_BUTTON_PRESS && event->button == KT_TOUCH_TAP)
-		for (i = 0; i < kb->flags_size; i++)
-			if (kb_is_key_match(kb->flags[i], event->x, event->y)) {
-				kb_process_flag(kb, &kb->flags[i], FALSE);
-				return FALSE;
-			}
+	/* this callback might get double-click or event triple-click events */
+	if G_UNLIKELY (event->type != GDK_BUTTON_PRESS)
+		return FALSE;
 
-	if (event->type == GDK_BUTTON_PRESS && event->button == KT_TOUCH_HOLD)
-		for (i = 0; i < kb->flags_size; i++)
-			if (kb_is_key_match(kb->flags[i], event->x, event->y)) {
-				kb_process_flag(kb, &kb->flags[i], TRUE);
-				return FALSE;
-			}
+	/* scale button press event according to the internal scale */
+	src_w = gdk_pixbuf_get_width(kb->kb_pixbuf);
+	src_h = gdk_pixbuf_get_height(kb->kb_pixbuf);
+	x = (x * src_w) / kb->width;
+	y = (y * src_h) / kb->height;
 
-	if (event->type == GDK_BUTTON_PRESS && event->button == KT_TOUCH_TAP)
-		for (i = 0; i < kb->keys_size; i++)
-			if (kb_is_key_match(kb->keys[i], event->x, event->y)) {
+	for (i = kb->flags_size - 1; i >= 0; i--)
+		if (kb_is_key_match(kb->flags[i], x, y)) {
+			kb_process_flag(kb, &kb->flags[i], event->button == KT_TOUCH_HOLD);
+			return TRUE;
+		}
+
+	if (event->button == KT_TOUCH_TAP)
+		for (i = kb->keys_size - 1; i >= 0; i--)
+			if (kb_is_key_match(kb->keys[i], x, y)) {
 				kb_process_key(kb, &kb->keys[i]);
-				return FALSE;
+				return TRUE;
 			}
 
   return FALSE;
@@ -147,22 +152,28 @@ static gboolean kb_press_event(GtkWidget *widget, GdkEventButton *event, gpointe
 ktkb_keyboard *embedded_kb_new(GtkWidget *kb_box, VteTerminal *terminal,
 		const char *image, const char *configuration) {
 
-	GtkWidget *kb_image;
 	ktkb_keyboard *kb;
 
 	if G_UNLIKELY ((kb = (ktkb_keyboard *)calloc(1, sizeof(*kb))) == NULL)
 		return NULL;
 
 	kb->terminal = terminal;
+
 	if G_UNLIKELY (!kb_load_keys(kb, configuration)) {
 		free(kb);
 		return NULL;
 	}
 
-	kb_image = gtk_image_new_from_file(image);
-	gtk_container_add((GtkContainer *)(kb_box), kb_image);
-	g_signal_connect(kb_box, "button-press-event", G_CALLBACK(kb_press_event), kb);
+	kb->kb_pixbuf = gdk_pixbuf_new_from_file(image, NULL);
+	if G_UNLIKELY (kb->kb_pixbuf == NULL) {
+		free(kb);
+		return NULL;
+	}
 
+	kb->kb_image = gtk_image_new_from_pixbuf(kb->kb_pixbuf);
+	gtk_container_add(GTK_CONTAINER(kb_box), kb->kb_image);
+
+	g_signal_connect(kb_box, "button-press-event", G_CALLBACK(kb_press_event), kb);
 	return kb;
 }
 
@@ -173,6 +184,8 @@ void embedded_kb_free(ktkb_keyboard *kb) {
 	if G_UNLIKELY (kb == NULL)
 		return;
 
+	gdk_pixbuf_unref(kb->kb_pixbuf);
+
 	for (i = 0; i < kb->keys_size; i++) {
 		for (ii = 0; ii < kb->keys[i].length; ii++)
 			free(kb->keys[i].modes[ii].sequence);
@@ -182,6 +195,42 @@ void embedded_kb_free(ktkb_keyboard *kb) {
 	free(kb->keys);
 	free(kb->flags);
 	free(kb);
+}
+
+/* Scale embedded keyboard widget according to the given width and height. If
+ * one (and only one) of this parameters is set to -1, then widget is scaled
+ * with the aspect ratio preserved. If both parameters are set to -1, then the
+ * widget size is set to the size of provided keyboard image. */
+void embedded_kb_scale(ktkb_keyboard *kb, int width, int height) {
+
+	GdkPixbuf *tmp;
+	int src_w, src_h;
+
+	src_w = gdk_pixbuf_get_width(kb->kb_pixbuf);
+	src_h = gdk_pixbuf_get_height(kb->kb_pixbuf);
+
+	if (width == -1 && height == -1) {
+		width = src_w;
+		height = src_h;
+	}
+	else if (width == -1)
+		width = (src_w * height) / src_h;
+	else if (height == -1)
+		height = (src_h * width) / src_w;
+
+	/* Skip resizing the keyboard image if the requested size has not been
+	 * changed since the last call - resize operation is very expensive. */
+	if (kb->width == width && kb->height == height)
+		return;
+
+	kb->width = width;
+	kb->height = height;
+	tmp = gdk_pixbuf_scale_simple(kb->kb_pixbuf, width, height, GDK_INTERP_HYPER);
+	if G_UNLIKELY (tmp == NULL)
+		return;
+
+	gtk_image_set_from_pixbuf(GTK_IMAGE(kb->kb_image), tmp);
+	gdk_pixbuf_unref(tmp);
 }
 
 /* Set user-defined callback function. This function will be called for every
