@@ -16,25 +16,23 @@ ktterm_CFLAGS = \
 
 ktterm_LDADD = \
 	@JSONC_LIBS@ \
+	@LIPC_LIBS@ \
 	@GTK_LIBS@ \
 	@VTE_LIBS@
 
-ktpatch.o: ktpatch.c
-	$(CC) $(CFLAGS) $(ktterm_CFLAGS) -c -o ktpatch.o "$(srcdir)/ktpatch.c"
+if ENABLE_KINDLE_ENV
 
-kindle-relink-local: $(ktterm_OBJECTS) ktpatch.o
-	$(CCLD) $(CFLAGS) -o ktterm $(ktterm_OBJECTS) ktpatch.o \
-		-Wl,-rpath-link=$(top_srcdir)/../../kindle/usr/lib \
-		$(top_srcdir)/../../kindle/usr/lib/libglib-2.0.so \
-		$(top_srcdir)/../../kindle/usr/lib/libgobject-2.0.so \
-		$(top_srcdir)/../../kindle/usr/lib/libgtk-x11-2.0.so \
-		$(top_srcdir)/../../kindle/usr/lib/libgdk-x11-2.0.so \
-		$(top_srcdir)/../../kindle/usr/lib/libgdk_pixbuf-2.0.so \
-		$(top_srcdir)/../../kindle/usr/lib/libatk-1.0.so \
-		$(top_srcdir)/../../kindle/usr/lib/libcairo.so \
-		$(top_srcdir)/../../kindle/usr/lib/libgio-2.0.so \
-		$(top_srcdir)/../../kindle/usr/lib/libpango-1.0.so \
-		$(top_srcdir)/../../kindle/usr/lib/libpangocairo-1.0.so.0 \
-		$(top_srcdir)/../../kindle/usr/lib/libXinerama.so \
-		-lX11 -lm -lncurses \
+AM_LDFLAGS = \
+	-L$(sysrootdir)/usr/lib \
+	-L$(top_srcdir)/../../kindle/lib \
+	-L$(top_srcdir)/../../kindle/usr/lib
+
+ktterm_SOURCES += ktpatch.c
+
+ktterm$(EXEEXT): $(ktterm_OBJECTS)
+	@rm -f ktterm$(EXEEXT)
+	$(ktterm_LINK) $(ktterm_OBJECTS) \
+		@GTK_LIBS@ @LIPC_LIBS@ -lX11 -lm -lncurses \
 		-Wl,-Bstatic -ljson-c -lvte -Wl,-Bdynamic
+
+endif

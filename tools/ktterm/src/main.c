@@ -18,6 +18,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/wait.h>
+#if HAVE_OPENLIPC_H
+# include <openlipc.h>
+#endif
 
 #include "keyboard.h"
 #include "ktutils.h"
@@ -59,46 +63,53 @@ static void set_window_size(gboolean keyboard_visible) {
 			(GdkWindowHints)(GDK_HINT_MIN_SIZE | GDK_HINT_MAX_SIZE));
 }
 
-static void show_keyboard(gboolean show) {
+/* Lipc convenience wrapper for setting string property. On success this
+ * function returns TRUE, otherwise FALSE. */
+static gboolean lipc_set_string_property(char *publisher, char *prop, char *value) {
+#if HAVE_OPENLIPC_H
 
-#if HAVE_LIPC_H
+	LIPC *lipc;
+	LIPCcode code;
+
+	if ((lipc = LipcOpenNoName()) == NULL)
+		return FALSE;
+
+	code = LipcSetStringProperty(lipc, publisher, prop, value);
+	LipcClose(lipc);
+	return code == LIPC_OK;
+
 #else
-	pid_t lipc_pid;
-	char lipc_set_prop_bin[] = "/usr/bin/lipc-set-prop";
-	char lipc_action_open[] = "open";
-	char lipc_action_close[] = "close";
-	char lipc_action_data[32];
-	char *v_argv[8] = { lipc_set_prop_bin, "-s", "com.lab126.keyboard", lipc_action_open, lipc_action_data, NULL };
-#endif
 
-#ifdef DEBUG
-	printf("show_keyboard: %d\n", config.show_keyboard);
+	char *lipc_set_prop_bin = "/usr/bin/lipc-set-prop";
+	char *v_argv[] = { lipc_set_prop_bin, "-s", publisher, prop, value, NULL };
+	pid_t pid;
+	int status;
+
+	if (posix_spawn(&pid, lipc_set_prop_bin, NULL, NULL, v_argv, NULL))
+		return FALSE;
+
+	if (waitpid(pid, &status, 0) != -1 && WIFEXITED(status))
+		return !WEXITSTATUS(status);
+
+	return FALSE;
+
 #endif
+}
+
+static void show_keyboard(gboolean show) {
 
 	/* use external Kindle-on-board keyboard */
 	if (ktterm_use_kindle_keyboard) {
 
 		/* show keyboard, and then shrink the terminal window */
 		if (show) {
-#if HAVE_LIPC_H
-#else
-			v_argv[3] = lipc_action_open;
-			sprintf(lipc_action_data, "%s:abc:0", PACKAGE);
-			posix_spawn(&lipc_pid, lipc_set_prop_bin, NULL, NULL, v_argv, NULL);
-#endif
-
+			lipc_set_string_property("com.lab126.keyboard", "open", PACKAGE ":abc:0");
 			set_window_size(TRUE);
 		}
 		/* enlarge the terminal window, and then hide keyboard */
 		else {
 			set_window_size(FALSE);
-
-#if HAVE_LIPC_H
-#else
-			v_argv[3] = lipc_action_close;
-			sprintf(lipc_action_data, "%s", PACKAGE);
-			posix_spawn(&lipc_pid, lipc_set_prop_bin, NULL, NULL, v_argv, NULL);
-#endif
+			lipc_set_string_property("com.lab126.keyboard", "close", PACKAGE);
 		}
 
 	}
