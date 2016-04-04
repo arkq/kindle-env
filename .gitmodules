@@ -3,3 +3,8 @@
 	url = https://github.com/NiLuJe/KindleTool.git
 	branch = master
 	ignore = all
+[submodule "tools/openlipc"]
+	path = tools/openlipc
+	url = https://github.com/Arkq/openlipc.git
+	branch = master
+	ignore = all
