@@ -23,9 +23,10 @@ ktterm_LDADD = \
 if ENABLE_KINDLE_ENV
 
 AM_LDFLAGS = \
-	-L$(sysrootdir)/usr/lib \
-	-L$(top_srcdir)/../../kindle/lib \
-	-L$(top_srcdir)/../../kindle/usr/lib
+	-L$(KINDLE_ROOTDIR)/lib \
+	-L$(KINDLE_ROOTDIR)/usr/lib \
+	-Wl,-rpath=$(KINDLE_ROOTDIR)/lib \
+	-Wl,-rpath=$(KINDLE_ROOTDIR)/usr/lib
 
 ktterm_SOURCES += ktpatch.c
 

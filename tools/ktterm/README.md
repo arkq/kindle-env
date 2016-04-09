@@ -6,7 +6,7 @@ widget - [VTE](https://github.com/GNOME/vte).
 
 KTTerm supports standard `-e` option (available in all (?) terminal emulators), which can be used
 to specify the program and its command line arguments to be run in the KTTerm window. If this
-option is not given, the standard command line interpreter (sh) is launched.
+option is not given, the standard command line interpreter `/bin/sh` is launched.
 
 ![Screenshot](/tools/ktterm/screenshot.png?raw=true)
 
@@ -37,6 +37,7 @@ see the [README](/README.md) file in the root directory of this repository. Then
 
 	$ autoreconf --install
 	$ mkdir build && cd build
+	$ export KINDLE_ROOTDIR=<absolute_patch_to_the_Kindle_root_directory>
 	$ ../configure --enable-kindle-env --host=armv7a-softfp-linux-gnueabi
 	$ make
 

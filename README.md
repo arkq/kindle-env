@@ -55,7 +55,17 @@ Download an appropriate firmware from the Amazon Kindle Software Updates
 
 Mount extracted image using provided mount wrapper (root privileges might be required):
 
-	# ./bin/mount.kindle kindle-rootfs.img
+	# ./bin/mount.kindle -w kindle-rootfs.img
+
+The original Kindle firmware image contains linker-script libraries which are not suitable for
+cross-compilation. In order to link executables with libraries present on the Kindle root image,
+it is required to fix these linker-scripts. To do so, use provided `ldfix` tool as follows:
+
+	# ./bin/ldfix
+
+For more information see
+[this thread](https://stackoverflow.com/questions/7476625/set-global-gcc-default-search-paths) on
+Stack Overflow.
 
 
 Further reading

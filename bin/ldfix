@@ -1,0 +1,60 @@
+#!/bin/bash
+# Linker script fix for Kindle image.
+
+# the root directory of the Kindle image
+KINDLEROOT="$(cd "$(dirname "$0")/../kindle"; pwd)"
+# interactive mode - ask before updating files
+INTERACTIVE=true
+
+function usage {
+	cat << EOF
+usage: $0 [options]
+options:
+  -h  display this help text and exit
+  -f  non-interactive mode
+EOF
+}
+
+while getopts "hf" opt; do
+	case "$opt" in
+	h)
+		usage
+		exit 1
+		;;
+	f)
+		INTERACTIVE=false
+		;;
+	*)
+		exit 1
+		;;
+	esac
+done
+
+shift $((OPTIND - 1))
+[ "$1" = "--" ] && shift
+
+[ -n "$1" ] && { usage; exit 1; }
+
+# test if Kindle root image is mounted
+if ! [ -d "$KINDLEROOT/usr/lib" ]; then
+	echo "Kindle root directory: $KINDLEROOT"
+	echo "ERROR: Kindle root image not mounted."
+	exit 1
+fi
+
+# change directory for the simplicity's sake
+cd "$KINDLEROOT/usr/lib"
+
+for FILE in `grep -s -l --binary-files=without-match GROUP *.so`; do
+
+	if egrep -q " (/usr)*/lib/" "$FILE"; then
+		if [ $INTERACTIVE = true ]; then
+			read -p "Fixing: $KINDLEROOT/usr/lib/$FILE [y/N]? " -n 1 -r
+			echo; [[ ! "$REPLY" =~ ^[Yy]$ ]] && continue
+		else
+			echo "Fixing: $KINDLEROOT/usr/lib/$FILE"
+		fi
+		sed -e 's$ /lib/$ ../../lib/$g' -e 's$ /usr/lib/$ $g' -i.ldfix "$FILE"
+	fi
+
+done

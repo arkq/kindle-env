@@ -9,18 +9,25 @@ AC_PROG_CC
 AM_PROG_CC_C_O
 
 
+AC_ARG_VAR([KINDLE_ROOTDIR], [directory containing Kindle root tree])
 AC_ARG_ENABLE([kindle-env],
-	[AS_HELP_STRING([--enable-kindle-env], [use Kindle development environment])])
+	[AS_HELP_STRING([--enable-kindle-env[[=DIR]]], [use Kindle environment])], [
+		if test "x$enableval" != "xno"; then enable_kindle_env=yes; fi
+		if test "x$enableval" != "xno" -a "x$enableval" != "xyes"; then
+			AC_SUBST([KINDLE_ROOTDIR], [$enableval])
+		fi
+	])
 AM_CONDITIONAL([ENABLE_KINDLE_ENV], [test "x$enable_kindle_env" = "xyes"])
 AM_COND_IF([ENABLE_KINDLE_ENV], [
-	AC_MSG_CHECKING([whether Kindle root image is mounted])
-	AC_CONFIG_SRCDIR([../../kindle/etc/upstart/kindle.conf])
-	AC_MSG_RESULT([yes])
 	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#ifndef __arm__
 		error: Not an ARM compiler!
 		#endif]])], [],
 		[AC_MSG_FAILURE([ARM-compatible compiler is required])])
-	AC_SUBST([sysrootdir], [`$CC -v 2>&1 |grep -o 'sysroot=\S*' |cut -c 9-`])
+	if test "x$KINDLE_ROOTDIR" = "x"; then
+		AC_MSG_WARN([Kindle environment enabled, but Kindle root tree location not given!])
+		AC_MSG_WARN([Either set the KINDLE_ROOTDIR environmental variable or set the root])
+		AC_MSG_WARN([tree location with the --enable-kindle-env option.])
+	fi
 ])
 
 
