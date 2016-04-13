@@ -8,3 +8,8 @@
 	url = https://github.com/Arkq/openlipc.git
 	branch = master
 	ignore = all
+[submodule "tools/bitbake"]
+	path = tools/bitbake
+	url = https://github.com/openembedded/bitbake.git
+	branch = master
+	ignore = all
