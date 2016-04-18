@@ -40,3 +40,6 @@ config.h.in
 /kindle/*
 /kindle-rootfs.img
 /kindle-userfs.img
+
+# OpenEmbedded core
+/oecore

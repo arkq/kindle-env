@@ -1,0 +1,51 @@
+#!/bin/sh
+# Initialize OpenEmbedded subsystem.
+
+# test whatever this script has been sourced or executed
+if [ "$(basename "$0")" = "oecore-init" ]; then
+
+	# Script has been executed, so it is possible to determine the root directory
+	# of our development environment. After changing the directory we can be sure
+	# that we know the exact location of our components.
+	DEVDIR="$(cd "$(dirname "$0")/.."; pwd)"
+	cd "$DEVDIR"
+
+	if ! [ -f oecore/oe-init-build-env ]; then
+		git clone --depth 1 https://github.com/openembedded/openembedded-core.git oecore
+	fi
+
+	if ! [ -d oecore/meta-fsl-arm ]; then
+		git clone --depth 1 git://git.yoctoproject.org/meta-fsl-arm oecore/meta-fsl-arm
+	fi
+
+	ln -fnrs tools/bitbake oecore/bitbake
+	ln -fnrs oemeta oecore/meta-kindle
+
+	# Unfortunately, BitBake is not compatible with python 3K. Systems with the
+	# default interpreter set to 3K are required to change their default, which
+	# is not welcomed. As a quick & dirty fix, we will make python 2 appears as
+	# a default via the PATH environmental variable manipulation.
+	mkdir -p build/.bin
+	ln -fs "$(which python2)" build/.bin/python
+
+	# Initialize build shell environment. It will initialize conf directory if
+	# needed, which is required for the next setup stage.
+	export PATH=$DEVDIR/bin:$DEVDIR/build/.bin:$PATH
+	source oecore/oe-init-build-env
+
+	# add layers
+	bitbake-layers add-layer $DEVDIR/oecore/meta-fsl-arm
+	bitbake-layers add-layer $DEVDIR/oecore/meta-kindle
+
+	echo
+	echo "# Core meta-data for OpenEmbedded has been initialized. Now, you can source"
+	echo "# this file as shown below, which will initialize build environment."
+	echo
+	echo "cd $DEVDIR && . bin/oecore-init"
+
+else
+	export PATH=$(pwd)/bin:$(pwd)/build/.bin:$PATH
+	export KINDLE_ROOTDIR=$(pwd)/kindle
+	export BB_ENV_EXTRAWHITE="KINDLE_ROOTDIR"
+	source oecore/oe-init-build-env
+fi
