@@ -2,7 +2,7 @@ SUMMARY = "Open-source LIPC header file"
 HOMEPAGE = "https://github.com/Arkq/openlipc"
 
 LICENSE = "MIT"
-LIC_FILES_CHKSUM = "file://LICENSE.txt;beginline=3;md5=49302caf63949bad4b75fb86fd99b26b"
+LIC_FILES_CHKSUM = "file://LICENSE.txt;beginline=5;md5=838c366f69b72c5df05c96dff79b35f2"
 
 DEPENDS = "lipc"
 
